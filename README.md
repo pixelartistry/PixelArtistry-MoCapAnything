@@ -26,6 +26,7 @@ Don't want to install anything? Try the free browser demo first: [huggingface.co
 - Installs PyTorch 2.9 with CUDA 12.8 on NVIDIA GPUs (RTX 30/40/50 series), otherwise the CPU build.
 - Installs the demo packages.
 - Pre-downloads the V2 weights, the official example videos and characters (~1.7 GB), and the helper models (DINOv2, BRIA RMBG-1.4, SAM 2.1), so the first start doesn't stall.
+- Fixes two Windows path bugs in the upstream code (otherwise every run ends with "Inference produced no motion").
 - Writes the `Run_MoCapAnything` launcher.
 - Safe to re-run: the repo and the environment are reused, finished downloads are skipped.
 

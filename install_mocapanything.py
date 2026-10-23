@@ -94,6 +94,37 @@ def download_repo():
     os.remove(zip_path)
 
 
+# Upstream splits paths on "/" in a few places. On Windows the paths contain "\",
+# so the demo writes its results to the wrong folder and reports "Inference
+# produced no motion". Each entry: (file, original text, replacement).
+WINDOWS_PATCHES = [
+    ("inference/video2pose2rot.py",
+     'test_name = image_folder.split("/")[-2]',
+     'test_name = os.path.normpath(image_folder).replace("\\\\", "/").split("/")[-2]'),
+    ("utils/mesh.py",
+     'motion_name = motion_path.split("/")[-1][:-4]',
+     'motion_name = os.path.splitext(os.path.basename(motion_path))[0]'),
+]
+
+
+def patch_repo():
+    for rel, old, new in WINDOWS_PATCHES:
+        path = os.path.join(REPO_DIR, rel)
+        if not os.path.exists(path):
+            print(f"  ! {rel} not found - skipping patch")
+            continue
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        if new in text:
+            print(f"  {rel}: already patched")
+        elif old in text:
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(text.replace(old, new))
+            print(f"  {rel}: patched path handling")
+        else:
+            print(f"  ! {rel}: code changed upstream - patch not applied")
+
+
 def install_env(uv):
     if not os.path.exists(venv_python()):
         run([uv, "venv", "--python", PYTHON_VERSION, VENV])
@@ -188,6 +219,7 @@ def main():
     uv = find_uv()
     step("1/4 Downloading MoCapAnything")
     download_repo()
+    patch_repo()
     step("2/4 Creating Python environment + installing PyTorch and dependencies")
     install_env(uv)
     step("3/4 Downloading model weights and example data")
