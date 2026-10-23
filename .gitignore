@@ -1,0 +1,20 @@
+# Created by the installer when you run it
+MocapAnything/
+mocapanything_main.zip
+run_mocapanything.py
+Run_MoCapAnything.bat
+run.sh
+
+# Notes, prompts and handoff files (never commit)
+notes/
+HANDOFF*
+handoff*
+CLAUDE.md
+.claude/
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
