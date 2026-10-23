@@ -94,10 +94,35 @@ def download_repo():
     os.remove(zip_path)
 
 
-# Upstream splits paths on "/" in a few places. On Windows the paths contain "\",
-# so the demo writes its results to the wrong folder and reports "Inference
-# produced no motion". Each entry: (file, original text, replacement).
-WINDOWS_PATCHES = [
+# Local fixes applied to the upstream code after download.
+# Each entry: (file, original text, replacement).
+#  - Paths: upstream splits paths on "/". On Windows the paths contain "\", so the
+#    demo writes its results to the wrong folder ("Inference produced no motion").
+#  - VRAM: DINOv2 encoded 512 frames in one batch (several GB of activations), and
+#    PyTorch kept freed memory reserved after every run, so later runs spilled out
+#    of VRAM. Smaller batches + freeing the cache after each run keep it low-VRAM.
+PATCHES = [
+    ("demo/app.py",
+     "            if len(a) == 1 and callable(a[0]):\n"
+     "                return a[0]\n"
+     "            return lambda f: f\n",
+     "            def _wrap(f):  # PixelArtistry: free GPU memory after every run\n"
+     "                import functools, gc\n"
+     "                @functools.wraps(f)\n"
+     "                def _run(*fa, **fk):\n"
+     "                    try:\n"
+     "                        return f(*fa, **fk)\n"
+     "                    finally:\n"
+     "                        gc.collect()\n"
+     "                        if torch.cuda.is_available():\n"
+     "                            torch.cuda.empty_cache()\n"
+     "                return _run\n"
+     "            if len(a) == 1 and callable(a[0]):\n"
+     "                return _wrap(a[0])\n"
+     "            return _wrap\n"),
+    ("utils/common.py",
+     "    batch_size = 512\n",
+     '    batch_size = int(os.environ.get("MOCAP_DINO_BATCH", "16"))  # PixelArtistry: was 512\n'),
     ("inference/video2pose2rot.py",
      'test_name = image_folder.split("/")[-2]',
      'test_name = os.path.normpath(image_folder).replace("\\\\", "/").split("/")[-2]'),
@@ -108,7 +133,7 @@ WINDOWS_PATCHES = [
 
 
 def patch_repo():
-    for rel, old, new in WINDOWS_PATCHES:
+    for rel, old, new in PATCHES:
         path = os.path.join(REPO_DIR, rel)
         if not os.path.exists(path):
             print(f"  ! {rel} not found - skipping patch")
@@ -120,7 +145,7 @@ def patch_repo():
         elif old in text:
             with open(path, "w", encoding="utf-8", newline="") as f:
                 f.write(text.replace(old, new))
-            print(f"  {rel}: patched path handling")
+            print(f"  {rel}: patched")
         else:
             print(f"  ! {rel}: code changed upstream - patch not applied")
 
